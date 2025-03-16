@@ -1,4 +1,4 @@
-var url = "http://localhost:3300/api/users";
+var url = "http://localhost:8080/api/users";
 
 function postUser() {
   console.log(url);
