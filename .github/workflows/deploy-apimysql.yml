@@ -1,7 +1,4 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-
-name: Deploy mysql-api
+name: Deploy postgres-api
 
 on:
   push:
@@ -10,49 +7,26 @@ on:
 jobs:
   deploy-api:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Create .env file
-        run: |
-          echo "DEV_DATABASE_URL=${{ secrets.MYSQL_CONN }}" >> .env
-          cat .env
+      - run: npm ci  # Más rápido que npm install en CI
+      
+      - run: echo "DEV_DATABASE_URL=${{ secrets.PG_CONN }}" > .env
 
-      - name: Install dependencies
-        run: npm install
+      - run: cat .env  # Solo para debug, puedes quitarlo
 
-      - name: Install Sequelize CLI
-        run: npm install -g sequelize-cli@6.2.0
+      # Opcional: correr migraciones
+      # - run: npm install -g sequelize-cli@6.2.0
+      # - run: npx sequelize-cli db:migrate
 
-      - name: Run Sequelize migrations
-        run: |
-          npm install dotenv
-          npx sequelize db:migrate
-        env:
-          DEV_DATABASE_URL: ${{ secrets.MYSQL_CONN }}
+      - run: docker build -t ${{ secrets.DOCKER_USER }}/pg-restapi:${{ github.sha }} .
 
-      - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USER }}/mysql-restapi:${{ github.sha }} .
+      - name: docker login
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USER }}" --password-stdin
 
-      - name: List Docker images
-        run: docker images
-
-      - name: Login to Docker Hub
-        env:
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USER --password-stdin
-
-      - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USER }}/mysql-restapi:${{ github.sha }}
-
-        
-      - name: docker push
-        run:  docker push ${{ secrets.DOCKER_USER}}/mysql-restapi:${{github.sha}}      
+      - run: docker push ${{ secrets.DOCKER_USER }}/pg-restapi:${{ github.sha }}
